@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Busca ramos UTEM</title>
+    <title>Busca curso UTEM</title>
     <script src="bd_ramos.js"></script>
     
     <style>
@@ -361,6 +361,63 @@
             display: none;
         }
 
+        .modal-overlay {
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.5); 
+            z-index: 3000; 
+            justify-content: center; 
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #fff; 
+            padding: 25px; 
+            border-radius: 8px; 
+            width: 320px; 
+            text-align: center; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .modal-title {
+            margin-top: 0; 
+            color: var(--texto-azul); 
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .modal-text {
+            font-size: 13px; 
+            color: #555;
+            margin: 15px 0;
+            line-height: 1.4;
+        }
+
+        .modal-buttons {
+            display: flex; 
+            justify-content: center; 
+            gap: 12px; 
+            margin-top: 20px;
+        }
+
+        .btn-modal {
+            border: none; 
+            padding: 8px 24px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .btn-si { background: var(--verde-utem); color: #fff; }
+        .btn-no { background: #e74c3c; color: #fff; }
+
         .barra-patente {
             background-color: #12281d;
             color: #a7bcae;
@@ -418,6 +475,17 @@
 
     <div id="toast" class="toast"></div>
 
+    <div id="credit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="modal-title">Límite excedido</h3>
+            <p class="modal-text">Al agregar este ramo superas los 30 créditos. ¿Tienes solicitud extraordinaria?</p>
+            <div class="modal-buttons">
+                <button class="btn-modal btn-si" onclick="confirmExtra(true)">Sí</button>
+                <button class="btn-modal btn-no" onclick="confirmExtra(false)">No</button>
+            </div>
+        </div>
+    </div>
+
     <div class="app-container">
         <div class="sidebar">
             <div class="sidebar-header">
@@ -440,7 +508,7 @@
                 <div class="info-box" id="info-carga-box" style="display: none;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--verde-utem);"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                     <strong>Información:</strong> 
-                    <span>Tiene <span id="carga-count">0</span> carga académica asignada. (Créditos: <span id="credits-count">0</span> | Bloques: <span id="hours-count">0</span>)</span>
+                    <span>Tiene <span id="carga-count">0</span> carga académica asignada. (Créditos: <span id="credits-count">0</span> | Horas: <span id="hours-count">0</span>)</span>
                 </div>
 
                 <div class="summary-container">
@@ -505,6 +573,8 @@
     const colorPalette = ["#0056b3", "#d63384", "#6f42c1", "#198754", "#fd7e14", "#0dcaf0", "#20c997", "#6610f2"];
     
     let mySchedule = [];
+    let solicitudExtraordinaria = false;
+    let pendingCourse = null;
 
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof coursesData === 'undefined') {
@@ -734,6 +804,32 @@
             removeCourse(duplicado.id);
         }
 
+        let currC = 0;
+        for(let i=0; i<mySchedule.length; i++) {
+            currC += mySchedule[i].credits;
+        }
+
+        if(currC + credits > 30 && !solicitudExtraordinaria) {
+            pendingCourse = {code: code, name: name, secData: secData, credits: credits, blocks: blocks};
+            document.getElementById('credit-modal').style.display = 'flex';
+            return;
+        }
+
+        executeAddCourse(code, name, secData, credits, blocks);
+    }
+
+    function confirmExtra(ans) {
+        document.getElementById('credit-modal').style.display = 'none';
+        if(ans) {
+            solicitudExtraordinaria = true;
+            if(pendingCourse) {
+                executeAddCourse(pendingCourse.code, pendingCourse.name, pendingCourse.secData, pendingCourse.credits, pendingCourse.blocks);
+            }
+        }
+        pendingCourse = null;
+    }
+
+    function executeAddCourse(code, name, secData, credits, blocks) {
         let cIndex = 0;
         for(let i=0; i<code.length; i++) {
             cIndex += code.charCodeAt(i);
